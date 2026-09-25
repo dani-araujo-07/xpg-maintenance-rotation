@@ -274,7 +274,9 @@ function testReminderNotification() {
 
   const nextAssignment = {
     backend: data[2][ROTATION_COLS.BACKEND],
-    frontend: data[2][ROTATION_COLS.FRONTEND]
+    frontend: data[2][ROTATION_COLS.FRONTEND],
+    startDate: new Date(data[2][ROTATION_COLS.START_DATE]),
+    endDate: new Date(data[2][ROTATION_COLS.END_DATE])
   };
 
   const nextRotationDate = new Date(data[2][ROTATION_COLS.START_DATE]);
@@ -290,7 +292,7 @@ function testReminderNotification() {
   const message = buildChangeNotificationMessage(
     formatMention(currentAssignment.backend, engineers.userIds), formatMention(nextAssignment.backend, engineers.userIds),
     formatMention(currentAssignment.frontend, engineers.userIds), formatMention(nextAssignment.frontend, engineers.userIds),
-    nextRotationDate
+    nextAssignment
   );
 
   Logger.log("Sending notification...");

@@ -70,6 +70,11 @@ function createSheets() {
     Logger.log("✓ Config sheet created");
   }
 
+  if (!ss.getSheetByName(SHEETS.MESSAGES)) {
+    setupMessagesSheet();
+    Logger.log("✓ Messages sheet created");
+  }
+
   if (!ss.getSheetByName(SHEETS.ARCHIVE)) {
     const archiveSheet = ss.insertSheet(SHEETS.ARCHIVE);
     archiveSheet.getRange(1, 1, 1, 6).setValues([

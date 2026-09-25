@@ -104,7 +104,7 @@ function sendReminderNotification() {
   const message = buildChangeNotificationMessage(
     formatMention(prev.backend, engineers.userIds), formatMention(assignment.backend, engineers.userIds),
     formatMention(prev.frontend, engineers.userIds), formatMention(assignment.frontend, engineers.userIds),
-    nextRotationDay
+    assignment
   );
 
   sendSlackMessageOrThrow(slackToken, slackChannel, message, "reminder");
@@ -134,10 +134,6 @@ function formatMention(name, userIds) {
   return `<@${userId}>`;
 }
 
-function formatPairLine(label, previous, next) {
-  return previous ? `• *${label}:* ${previous} → ${next}` : `• *${label}:* ${next}`;
-}
-
 // ============================================================
 // MESSAGE BUILDERS
 // ============================================================
@@ -164,82 +160,63 @@ function getDurationText() {
   return `${days} days`;
 }
 
-function buildHandoverMessage(prevBackend, newBackend, prevFrontend, newFrontend, newAssignment) {
-  const handoverStart = formatHandoverMoment(newAssignment.startDate);
-  const handoverEnd = formatHandoverMoment(DateUtils.addDays(new Date(newAssignment.endDate), 1));
+function buildMessageValues(prevBackend, newBackend, prevFrontend, newFrontend, assignment) {
+  const config = getConfig();
+  const pair = (previous, next) => (previous ? `${previous} → ${next}` : next);
 
   return {
-    text: MESSAGES.HANDOVER_HEADER,
-    blocks: [
-      {
-        type: "header",
-        text: { type: "plain_text", text: MESSAGES.HANDOVER_HEADER, emoji: true }
-      },
-      {
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: `${formatPairLine("Backend", prevBackend, newBackend)}\n${formatPairLine("Frontend", prevFrontend, newFrontend)}`
-        }
-      },
-      {
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: `:calendar: *Maintenance Period:* ${getDurationText()}\n${handoverStart}  →  ${handoverEnd}`
-        }
-      },
-      {
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: `${MESSAGES.HANDOVER_DESCRIPTION}\n${MESSAGES.HANDOVER_OUTGOING}\n${MESSAGES.HANDOVER_INCOMING}`
-        }
-      },
-      {
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: MESSAGES.HANDOVER_NEXT_STEPS.replace("{BUGS_CHANNEL_ID}", getConfig().BUGS_CHANNEL_ID)
-        }
-      },
-      {
-        type: "context",
-        elements: [
-          { type: "mrkdwn", text: MESSAGES.HANDOVER_NOTE }
-        ]
-      }
-    ]
+    BACKEND: pair(prevBackend, newBackend),
+    FRONTEND: pair(prevFrontend, newFrontend),
+    NEW_BACKEND: newBackend,
+    NEW_FRONTEND: newFrontend,
+    PREV_BACKEND: prevBackend || "",
+    PREV_FRONTEND: prevFrontend || "",
+    START: formatHandoverMoment(assignment.startDate),
+    END: formatHandoverMoment(DateUtils.addDays(new Date(assignment.endDate), 1)),
+    DAY: DAY_NAMES[config.ROTATION_DAY],
+    TIME: formatStartTime(assignment.startDate),
+    DURATION: getDurationText(),
+    BUGS_CHANNEL: config.BUGS_CHANNEL_ID ? `<#${config.BUGS_CHANNEL_ID}>` : "",
+    TEAM_NAME: config.TEAM_NAME
   };
 }
 
-function buildChangeNotificationMessage(prevBackend, newBackend, prevFrontend, newFrontend, rotationDate) {
-  const prepareMsg = MESSAGES.CHANGES_PREPARE.replace(
-    "{TIME}",
-    formatStartTime(rotationDate)
-  );
+function buildSlackMessage(parts, values) {
+  const blocks = [];
+  let fallbackText = "Maintenance rotation update";
 
-  return {
-    text: MESSAGES.CHANGES_HEADER,
-    blocks: [
-      {
-        type: "header",
-        text: { type: "plain_text", text: MESSAGES.CHANGES_HEADER }
-      },
-      {
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: `${formatPairLine("Backend", prevBackend, newBackend)}\n${formatPairLine("Frontend", prevFrontend, newFrontend)}`
-        }
-      },
-      {
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: `:alarm_clock: ${prepareMsg}\n:calendar: ${MESSAGES.CHANGES_CHECK}`
-        }
-      }
-    ]
-  };
+  for (const [type, key] of parts) {
+    const text = renderMessage(key, values);
+    if (!text) continue;
+
+    if (type === "header") {
+      fallbackText = text;
+      blocks.push({ type: "header", text: { type: "plain_text", text, emoji: true } });
+    } else if (type === "context") {
+      blocks.push({ type: "context", elements: [{ type: "mrkdwn", text }] });
+    } else {
+      blocks.push({ type: "section", text: { type: "mrkdwn", text } });
+    }
+  }
+
+  return { text: fallbackText, blocks };
+}
+
+function buildHandoverMessage(prevBackend, newBackend, prevFrontend, newFrontend, newAssignment) {
+  return buildSlackMessage([
+    ["header", "HANDOVER_HEADER"],
+    ["section", "HANDOVER_ASSIGNMENTS"],
+    ["section", "HANDOVER_PERIOD"],
+    ["section", "HANDOVER_INSTRUCTIONS"],
+    ["section", "HANDOVER_NEXT_STEPS"],
+    ["context", "HANDOVER_NOTE"]
+  ], buildMessageValues(prevBackend, newBackend, prevFrontend, newFrontend, newAssignment));
+}
+
+function buildChangeNotificationMessage(prevBackend, newBackend, prevFrontend, newFrontend, assignment) {
+  return buildSlackMessage([
+    ["header", "REMINDER_HEADER"],
+    ["section", "REMINDER_ASSIGNMENTS"],
+    ["section", "REMINDER_BODY"]
+  ], buildMessageValues(prevBackend, newBackend, prevFrontend, newFrontend, assignment));
 }
