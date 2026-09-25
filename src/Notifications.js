@@ -19,7 +19,7 @@ function sendMaintenanceHandoverNotification() {
     return;
   }
 
-  if (newAssignment.notified === "TRUE") {
+  if (isFlagSet(newAssignment.notified)) {
     Logger.log("Notification already sent for today");
     return;
   }
@@ -27,6 +27,7 @@ function sendMaintenanceHandoverNotification() {
   const yesterday = DateUtils.subtractDays(today, 1);
   const previousAssignment = findPreviousAssignment(yesterday);
 
+  // Throws if the message wasn't delivered, so the flag is only set on success
   notifyHandover(newAssignment, previousAssignment);
   markAssignmentAsNotified(newAssignment.rowIndex);
 }
@@ -36,29 +37,23 @@ function notifyHandover(newAssignment, previousAssignment) {
   const slackChannel = getSlackChannel();
 
   if (!slackToken || !slackChannel) {
-    Logger.log("Slack configuration not found");
-    return;
+    throw new Error("Slack token or channel not configured - handover notification not sent");
   }
 
   if (!previousAssignment) {
-    Logger.log("No previous assignment found - skipping handover notification");
-    return;
+    Logger.log("⚠️ No previous assignment found - sending handover with the incoming pair only");
   }
 
   const engineers = getEngineersData();
-
-  const newBackendId = engineers.userIds[newAssignment.backend] || newAssignment.backend;
-  const newFrontendId = engineers.userIds[newAssignment.frontend] || newAssignment.frontend;
-  const prevBackendId = engineers.userIds[previousAssignment.backend] || previousAssignment.backend;
-  const prevFrontendId = engineers.userIds[previousAssignment.frontend] || previousAssignment.frontend;
+  const prev = previousAssignment || {};
 
   const message = buildHandoverMessage(
-    prevBackendId, newBackendId,
-    prevFrontendId, newFrontendId,
+    formatMention(prev.backend, engineers.userIds), formatMention(newAssignment.backend, engineers.userIds),
+    formatMention(prev.frontend, engineers.userIds), formatMention(newAssignment.frontend, engineers.userIds),
     newAssignment
   );
 
-  SlackAPI.sendMessage(slackToken, slackChannel, message);
+  sendSlackMessageOrThrow(slackToken, slackChannel, message, "handover notification");
   Logger.log(`✓ Sent handover notification`);
 }
 
@@ -78,8 +73,7 @@ function sendReminderNotification() {
   const slackChannel = getSlackChannel();
 
   if (!slackToken || !slackChannel) {
-    Logger.log("Slack configuration not found");
-    return;
+    throw new Error("Slack token or channel not configured - reminder not sent");
   }
 
   const daysUntilRotation = (CONFIG.MAINTENANCE_ROTATION_DAY - today.getDay() + 7) % 7;
@@ -92,7 +86,7 @@ function sendReminderNotification() {
     return;
   }
 
-  if (assignment.reminderSent === "TRUE") {
+  if (isFlagSet(assignment.reminderSent)) {
     Logger.log("Reminder already sent for this rotation");
     return;
   }
@@ -100,26 +94,47 @@ function sendReminderNotification() {
   const prevAssignment = findPreviousAssignment(DateUtils.subtractDays(nextRotationDay, 1));
 
   if (!prevAssignment) {
-    Logger.log("No previous assignment found - skipping reminder");
-    return;
+    Logger.log("⚠️ No previous assignment found - sending reminder with the incoming pair only");
   }
 
   const engineers = getEngineersData();
-
-  const backendId = engineers.userIds[assignment.backend] || assignment.backend;
-  const frontendId = engineers.userIds[assignment.frontend] || assignment.frontend;
-  const prevBackendId = engineers.userIds[prevAssignment.backend] || prevAssignment.backend;
-  const prevFrontendId = engineers.userIds[prevAssignment.frontend] || prevAssignment.frontend;
+  const prev = prevAssignment || {};
 
   const message = buildChangeNotificationMessage(
-    prevBackendId, backendId,
-    prevFrontendId, frontendId,
+    formatMention(prev.backend, engineers.userIds), formatMention(assignment.backend, engineers.userIds),
+    formatMention(prev.frontend, engineers.userIds), formatMention(assignment.frontend, engineers.userIds),
     nextRotationDay
   );
 
-  SlackAPI.sendMessage(slackToken, slackChannel, message);
+  sendSlackMessageOrThrow(slackToken, slackChannel, message, "reminder");
   markAssignmentReminderAsSent(assignment.rowIndex);
   Logger.log(`✓ Sent change notification for next rotation`);
+}
+
+// ============================================================
+// SLACK HELPERS
+// ============================================================
+
+function sendSlackMessageOrThrow(token, channel, message, description) {
+  const result = SlackAPI.sendMessage(token, channel, message);
+  if (!result || !result.ok) {
+    throw new Error(`Slack ${description} failed: ${result ? result.error : "no response"}`);
+  }
+  return result;
+}
+
+function formatMention(name, userIds) {
+  if (!name) return null;
+  const userId = userIds[name];
+  if (!userId) {
+    Logger.log(`⚠️ No Slack User ID for "${name}" - showing the name without a mention`);
+    return name;
+  }
+  return `<@${userId}>`;
+}
+
+function formatPairLine(label, previous, next) {
+  return previous ? `• *${label}:* ${previous} → ${next}` : `• *${label}:* ${next}`;
 }
 
 // ============================================================
@@ -134,7 +149,7 @@ function formatHandoverMoment(date) {
   return `${datePart}, ${CONFIG.MAINTENANCE_START_HOUR}:00 ${tz}`;
 }
 
-function buildHandoverMessage(prevBackendId, newBackendId, prevFrontendId, newFrontendId, newAssignment) {
+function buildHandoverMessage(prevBackend, newBackend, prevFrontend, newFrontend, newAssignment) {
   const handoverStart = formatHandoverMoment(newAssignment.startDate);
   const handoverEnd = formatHandoverMoment(DateUtils.addDays(new Date(newAssignment.endDate), 1));
 
@@ -149,7 +164,7 @@ function buildHandoverMessage(prevBackendId, newBackendId, prevFrontendId, newFr
         type: "section",
         text: {
           type: "mrkdwn",
-          text: `• *Backend:* <@${prevBackendId}> → <@${newBackendId}>\n• *Frontend:* <@${prevFrontendId}> → <@${newFrontendId}>`
+          text: `${formatPairLine("Backend", prevBackend, newBackend)}\n${formatPairLine("Frontend", prevFrontend, newFrontend)}`
         }
       },
       {
@@ -183,7 +198,7 @@ function buildHandoverMessage(prevBackendId, newBackendId, prevFrontendId, newFr
   };
 }
 
-function buildChangeNotificationMessage(prevBackendId, newBackendId, prevFrontendId, newFrontendId, rotationDate) {
+function buildChangeNotificationMessage(prevBackend, newBackend, prevFrontend, newFrontend, rotationDate) {
   const prepareMsg = CONFIG.MESSAGES.CHANGES_PREPARE.replace(
     "{TIME}",
     CONFIG.getMaintenanceStartTimeDisplay(rotationDate)
@@ -200,7 +215,7 @@ function buildChangeNotificationMessage(prevBackendId, newBackendId, prevFronten
         type: "section",
         text: {
           type: "mrkdwn",
-          text: `• *Backend:* <@${prevBackendId}> → <@${newBackendId}>\n• *Frontend:* <@${prevFrontendId}> → <@${newFrontendId}>`
+          text: `${formatPairLine("Backend", prevBackend, newBackend)}\n${formatPairLine("Frontend", prevFrontend, newFrontend)}`
         }
       },
       {

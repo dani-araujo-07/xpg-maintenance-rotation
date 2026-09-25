@@ -287,19 +287,14 @@ function testReminderNotification() {
 
   const engineers = getEngineersData();
 
-  const backendId = engineers.userIds[nextAssignment.backend] || nextAssignment.backend;
-  const frontendId = engineers.userIds[nextAssignment.frontend] || nextAssignment.frontend;
-  const prevBackendId = engineers.userIds[currentAssignment.backend] || currentAssignment.backend;
-  const prevFrontendId = engineers.userIds[currentAssignment.frontend] || currentAssignment.frontend;
-
   const message = buildChangeNotificationMessage(
-    prevBackendId, backendId,
-    prevFrontendId, frontendId,
+    formatMention(currentAssignment.backend, engineers.userIds), formatMention(nextAssignment.backend, engineers.userIds),
+    formatMention(currentAssignment.frontend, engineers.userIds), formatMention(nextAssignment.frontend, engineers.userIds),
     nextRotationDate
   );
 
   Logger.log("Sending notification...");
-  SlackAPI.sendMessage(slackToken, slackChannel, message);
+  sendSlackMessageOrThrow(slackToken, slackChannel, message, "test reminder");
 
   Logger.log("");
   Logger.log("╔════════════════════════════════════════╗");

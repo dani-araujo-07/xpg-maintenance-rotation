@@ -98,11 +98,16 @@ function generateFutureAssignments(count) {
   const lastFrontendIndex = getStateValue("Last Frontend Index") || 0;
   const lastEndDate = getLastAssignmentEndDate();
 
+  // The indices point at the last archived pair. The first scheduled row is the one after it,
+  // and each row already in the schedule takes one more step - so new rows continue from there.
+  // With an empty archive, the indices are 0 and the first scheduled row starts at 0.
+  const offset = countScheduledAssignments() + (hasArchivedAssignments() ? 1 : 0);
+
   let rowNum = findFirstEmptyRow(rotationSheet);
 
   for (let i = 0; i < count; i++) {
-    const backendIndex = (lastBackendIndex + i) % engineers.backend.length;
-    const frontendIndex = (lastFrontendIndex + i) % engineers.frontend.length;
+    const backendIndex = (lastBackendIndex + offset + i) % engineers.backend.length;
+    const frontendIndex = (lastFrontendIndex + offset + i) % engineers.frontend.length;
 
     const backendEng = engineers.backend[backendIndex];
     const frontendEng = engineers.frontend[frontendIndex];
@@ -131,7 +136,7 @@ function maintainRotation() {
   let archivedCount = 0;
   let rowsToDelete = [];
 
-  for (let i = data.length - 1; i > 0; i--) {
+  for (let i = 1; i < data.length; i++) {
     if (!data[i][ROTATION_COLS.END_DATE]) continue;
 
     const endDate = new Date(data[i][ROTATION_COLS.END_DATE]);
@@ -145,6 +150,7 @@ function maintainRotation() {
     }
   }
 
+  // Bottom-up, so deleting a row doesn't shift the ones still to delete
   for (let i = rowsToDelete.length - 1; i >= 0; i--) {
     rotationSheet.deleteRow(rowsToDelete[i]);
   }
@@ -165,22 +171,34 @@ function maintainRotation() {
 // ASSIGNMENT LOGIC
 // ============================================================
 
+// Continues from the schedule, then from the archive, and only falls back to
+// ROTATION_START_DATE when both are empty (e.g. a brand-new sheet).
 function getLastAssignmentEndDate() {
-  const rotationSheet = getRotationSheet();
-  const data = rotationSheet.getDataRange().getValues();
-
-  let lastEndDate = new Date(CONFIG.ROTATION_START_DATE);
-
-  if (data.length > 1) {
-    for (let i = data.length - 1; i > 0; i--) {
-      if (data[i][ROTATION_COLS.END_DATE]) {
-        lastEndDate = new Date(data[i][ROTATION_COLS.END_DATE]);
-        break;
-      }
+  const data = getRotationSheet().getDataRange().getValues();
+  for (let i = data.length - 1; i > 0; i--) {
+    if (data[i][ROTATION_COLS.END_DATE]) {
+      return new Date(data[i][ROTATION_COLS.END_DATE]);
     }
   }
 
-  return lastEndDate;
+  const archive = getArchiveSheet().getDataRange().getValues();
+  for (let i = archive.length - 1; i > 0; i--) {
+    if (archive[i][ARCHIVE_COLS.END_DATE]) {
+      return new Date(archive[i][ARCHIVE_COLS.END_DATE]);
+    }
+  }
+
+  return new Date(CONFIG.ROTATION_START_DATE);
+}
+
+function countScheduledAssignments() {
+  const data = getRotationSheet().getDataRange().getValues();
+  return data.slice(1).filter(row => row[ROTATION_COLS.START_DATE]).length;
+}
+
+function hasArchivedAssignments() {
+  const data = getArchiveSheet().getDataRange().getValues();
+  return data.slice(1).some(row => row[ARCHIVE_COLS.END_DATE]);
 }
 
 function calculatePeriodDates(lastEndDate, offsetWeeks) {

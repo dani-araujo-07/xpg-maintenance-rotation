@@ -64,3 +64,7 @@ function markAssignmentAsNotified(rowIndex) {
 function markAssignmentReminderAsSent(rowIndex) {
   getRotationSheet().getRange(rowIndex, ROTATION_COLS.REMINDER_SENT + 1).setValue("TRUE");
 }
+
+function isFlagSet(value) {
+  return value === true || String(value).trim().toUpperCase() === "TRUE";
+}
