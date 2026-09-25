@@ -45,6 +45,10 @@ const DateUtils = {
     const result = new Date(date);
     result.setDate(result.getDate() - days);
     return result;
+  },
+
+  isSameDay(a, b) {
+    return this.atMidnight(a).getTime() === this.atMidnight(b).getTime();
   }
 };
 

@@ -68,3 +68,13 @@ function markAssignmentReminderAsSent(rowIndex) {
 function isFlagSet(value) {
   return value === true || String(value).trim().toUpperCase() === "TRUE";
 }
+
+function withScriptLock(action) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    return action();
+  } finally {
+    lock.releaseLock();
+  }
+}

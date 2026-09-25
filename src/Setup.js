@@ -17,7 +17,7 @@ function getSlackToken() {
 function setSlackToken(token) {
   if (!token) {
     Logger.log("Error: Token cannot be empty");
-    return;
+    return false;
   }
 
   const properties = PropertiesService.getScriptProperties();
@@ -26,11 +26,13 @@ function setSlackToken(token) {
   Logger.log("✓ Slack token saved to Script Properties");
   Logger.log("Testing connection...");
 
-  if (SlackAPI.testConnection(token)) {
+  const works = SlackAPI.testConnection(token);
+  if (works) {
     Logger.log("✓ Token verified and working!");
   } else {
     Logger.log("✗ Token test failed - please check if it's correct");
   }
+  return works;
 }
 
 function clearSlackToken() {
@@ -116,6 +118,10 @@ function init() {
 }
 
 function initializeRotation() {
+  withScriptLock(regenerateSchedule);
+}
+
+function regenerateSchedule() {
   createArchiveSheetIfNeeded();
   clearRotationSchedule();
   generateFutureAssignments(getConfig().MAX_FUTURE_ASSIGNMENTS);

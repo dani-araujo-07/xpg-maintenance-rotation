@@ -106,6 +106,10 @@ function generateFutureAssignments(count) {
 }
 
 function maintainRotation() {
+  withScriptLock(archiveAndTopUpSchedule);
+}
+
+function archiveAndTopUpSchedule() {
   const rotationSheet = getRotationSheet();
   const archiveSheet = getArchiveSheet();
   const data = rotationSheet.getDataRange().getValues();
