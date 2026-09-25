@@ -6,6 +6,12 @@ function validateSetup() {
   const results = [];
   const add = (level, message) => results.push({ level, message });
 
+  if (typeof DEPLOYMENT !== "undefined") {
+    add(CHECK.OK, `Version ${DEPLOYMENT.commit}, deployed ${DEPLOYMENT.deployedAt.slice(0, 10)} by ${DEPLOYMENT.deployedBy}`);
+  } else {
+    add(CHECK.WARNING, "Version unknown - this code was not pushed with npm run deploy");
+  }
+
   const missingSheets = [SHEETS.ENGINEERS, SHEETS.ROTATION, SHEETS.ARCHIVE, SHEETS.CONFIG]
     .filter(name => !SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name));
   if (missingSheets.length) {

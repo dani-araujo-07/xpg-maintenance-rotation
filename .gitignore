@@ -1,6 +1,7 @@
 node_modules/
 .DS_Store
 
-# Per-person: points at *your* spreadsheet's script. See .clasp.json.example
+.build/
+src/Version.js
 .clasp.json
 .clasprc.json

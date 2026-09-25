@@ -1,13 +1,10 @@
 {
   "name": "xpg-maintenance-rotation",
   "version": "1.0.0",
-  "description": "Apps Script automation for the XPG maintenance rotation spreadsheet",
+  "description": "Apps Script automation for the maintenance rotation spreadsheets",
   "scripts": {
     "login": "clasp login",
-    "pull": "clasp pull",
-    "push": "clasp push",
-    "watch": "clasp push --watch",
-    "open": "clasp open-script"
+    "deploy": "node deploy/deploy.mjs"
   },
   "devDependencies": {
     "@google/clasp": "^3.4.1"
