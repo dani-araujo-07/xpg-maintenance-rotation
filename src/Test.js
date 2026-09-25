@@ -55,7 +55,7 @@ function test() {
   const slackToken = getSlackToken();
   Logger.log(`   ✓ Engineers: ${engineers.backend.length} Backend, ${engineers.frontend.length} Frontend`);
   Logger.log(`   ✓ Slack: ${slackToken ? "Connected" : "Missing token"}`);
-  Logger.log(`   ✓ Bugs channel: ${CONFIG.BUGS_CHANNEL_ID || "NOT SET"}`);
+  Logger.log(`   ✓ Bugs channel: ${getConfig().BUGS_CHANNEL_ID || "NOT SET"}`);
   Logger.log("");
 
   // Test 2: View current rotations
@@ -94,12 +94,12 @@ function inspect() {
   Logger.log(`Engineers: ${engineers.backend.length} backend, ${engineers.frontend.length} frontend`);
   Logger.log(`Slack token: ${getSlackToken() ? "present" : "MISSING"}`);
   Logger.log(`Slack channel: ${getSlackChannel()}`);
-  Logger.log(`Bugs channel ID: ${CONFIG.BUGS_CHANNEL_ID || "NOT SET ⚠️"}`);
+  Logger.log(`Bugs channel ID: ${getConfig().BUGS_CHANNEL_ID || "NOT SET ⚠️"}`);
   Logger.log("");
 
-  Logger.log(`Config state:`);
-  Logger.log(`  Last Backend Index:  ${getStateValue("Last Backend Index")}`);
-  Logger.log(`  Last Frontend Index: ${getStateValue("Last Frontend Index")}`);
+  Logger.log(`Rotation state:`);
+  Logger.log(`  Last Backend Index:  ${getRotationIndex(PROPERTY_KEYS.LAST_BACKEND_INDEX)}`);
+  Logger.log(`  Last Frontend Index: ${getRotationIndex(PROPERTY_KEYS.LAST_FRONTEND_INDEX)}`);
   Logger.log("");
 
   const data = getRotationSheet().getDataRange().getValues();
@@ -108,7 +108,7 @@ function inspect() {
     const start = new Date(data[i][ROTATION_COLS.START_DATE]);
     const end = new Date(data[i][ROTATION_COLS.END_DATE]);
     const label = i === 1 ? "current" : (i === 2 ? "next" : "future");
-    Logger.log(`  [${label}] ${start.toDateString()} (${CONFIG.getDayName(start.getDay())}) → ${end.toDateString()}`);
+    Logger.log(`  [${label}] ${start.toDateString()} (${DAY_NAMES[start.getDay()]}) → ${end.toDateString()}`);
     Logger.log(`           ${data[i][ROTATION_COLS.BACKEND]} & ${data[i][ROTATION_COLS.FRONTEND]} | notified=${data[i][ROTATION_COLS.NOTIFIED]} reminder=${data[i][ROTATION_COLS.REMINDER_SENT]}`);
   }
   Logger.log("");
@@ -137,10 +137,10 @@ function inspect() {
   // Rotation day check
   if (data.length > 1) {
     const startDay = new Date(data[1][ROTATION_COLS.START_DATE]).getDay();
-    if (startDay === CONFIG.MAINTENANCE_ROTATION_DAY) {
-      Logger.log(`✓ Periods start on ${CONFIG.getDayName(startDay)}, matching the trigger day`);
+    if (startDay === getConfig().ROTATION_DAY) {
+      Logger.log(`✓ Periods start on ${DAY_NAMES[startDay]}, matching the trigger day`);
     } else {
-      Logger.log(`⚠️ Periods start on ${CONFIG.getDayName(startDay)} but the trigger fires on ${CONFIG.getDayName(CONFIG.MAINTENANCE_ROTATION_DAY)} - notifications will never match`);
+      Logger.log(`⚠️ Periods start on ${DAY_NAMES[startDay]} but the trigger fires on ${DAY_NAMES[getConfig().ROTATION_DAY]} - notifications will never match`);
     }
   }
 
@@ -231,8 +231,8 @@ function testMaintenanceHandoverNotification() {
   Logger.log(`  Period:   ${newAssignment.startDate.toDateString()} to ${newAssignment.endDate.toDateString()}`);
   Logger.log("");
 
-  if (!CONFIG.BUGS_CHANNEL_ID || CONFIG.BUGS_CHANNEL_ID.indexOf("XXX") >= 0) {
-    Logger.log("⚠️ CONFIG.BUGS_CHANNEL_ID is not set - the message will show a broken channel link");
+  if (!getConfig().BUGS_CHANNEL_ID) {
+    Logger.log("⚠️ BUGS_CHANNEL_ID is not set in the Config sheet - the message will show a broken channel link");
     Logger.log("");
   }
 

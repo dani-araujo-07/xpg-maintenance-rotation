@@ -3,28 +3,28 @@
 // ============================================================
 
 function getRotationSheet() {
-  return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.ROTATION_SHEET);
+  return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEETS.ROTATION);
 }
 
 function getEngineersSheet() {
-  return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.ENGINEERS_SHEET);
+  return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEETS.ENGINEERS);
 }
 
 function getConfigSheet() {
-  return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.CONFIG_SHEET);
+  return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEETS.CONFIG);
 }
 
 function getArchiveSheet() {
-  return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.ARCHIVE_SHEET);
+  return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEETS.ARCHIVE);
 }
 
 function createArchiveSheetIfNeeded() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  if (ss.getSheetByName(CONFIG.ARCHIVE_SHEET)) {
+  if (ss.getSheetByName(SHEETS.ARCHIVE)) {
     return;
   }
 
-  const archiveSheet = ss.insertSheet(CONFIG.ARCHIVE_SHEET);
+  const archiveSheet = ss.insertSheet(SHEETS.ARCHIVE);
   archiveSheet.getRange(1, 1, 1, 6).setValues([
     ["Start Date", "End Date", "Backend Engineer", "Frontend Engineer",
      "Completed Date", "Notes"]

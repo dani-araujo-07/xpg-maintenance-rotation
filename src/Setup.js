@@ -4,7 +4,7 @@
 
 function getSlackToken() {
   const properties = PropertiesService.getScriptProperties();
-  const token = properties.getProperty("SLACK_BOT_TOKEN");
+  const token = properties.getProperty(PROPERTY_KEYS.SLACK_TOKEN);
 
   if (!token) {
     Logger.log("Warning: Slack Bot Token not found in Script Properties");
@@ -21,7 +21,7 @@ function setSlackToken(token) {
   }
 
   const properties = PropertiesService.getScriptProperties();
-  properties.setProperty("SLACK_BOT_TOKEN", token);
+  properties.setProperty(PROPERTY_KEYS.SLACK_TOKEN, token);
 
   Logger.log("✓ Slack token saved to Script Properties");
   Logger.log("Testing connection...");
@@ -35,7 +35,7 @@ function setSlackToken(token) {
 
 function clearSlackToken() {
   const properties = PropertiesService.getScriptProperties();
-  properties.deleteProperty("SLACK_BOT_TOKEN");
+  properties.deleteProperty(PROPERTY_KEYS.SLACK_TOKEN);
   Logger.log("✓ Slack token cleared");
 }
 
@@ -48,16 +48,16 @@ function createSheets() {
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
-  if (!ss.getSheetByName(CONFIG.ENGINEERS_SHEET)) {
-    const engineersSheet = ss.insertSheet(CONFIG.ENGINEERS_SHEET);
+  if (!ss.getSheetByName(SHEETS.ENGINEERS)) {
+    const engineersSheet = ss.insertSheet(SHEETS.ENGINEERS);
     engineersSheet.getRange(1, 1, 1, 3).setValues([
       ["Name", "Area", "Slack User ID"]
     ]);
     Logger.log("✓ Engineers sheet created");
   }
 
-  if (!ss.getSheetByName(CONFIG.ROTATION_SHEET)) {
-    const rotationSheet = ss.insertSheet(CONFIG.ROTATION_SHEET);
+  if (!ss.getSheetByName(SHEETS.ROTATION)) {
+    const rotationSheet = ss.insertSheet(SHEETS.ROTATION);
     rotationSheet.getRange(1, 1, 1, 6).setValues([
       ["Start Date", "End Date", "Backend Engineer", "Frontend Engineer",
        "Handover Notification Sent", "Reminder Sent"]
@@ -65,16 +65,13 @@ function createSheets() {
     Logger.log("✓ Rotation Schedule sheet created");
   }
 
-  if (!ss.getSheetByName(CONFIG.CONFIG_SHEET)) {
-    const configSheet = ss.insertSheet(CONFIG.CONFIG_SHEET);
-    configSheet.getRange(1, 1, 1, 2).setValues([
-      ["Setting", "Value"]
-    ]);
+  if (!ss.getSheetByName(SHEETS.CONFIG)) {
+    setupConfigSheet();
     Logger.log("✓ Config sheet created");
   }
 
-  if (!ss.getSheetByName(CONFIG.ARCHIVE_SHEET)) {
-    const archiveSheet = ss.insertSheet(CONFIG.ARCHIVE_SHEET);
+  if (!ss.getSheetByName(SHEETS.ARCHIVE)) {
+    const archiveSheet = ss.insertSheet(SHEETS.ARCHIVE);
     archiveSheet.getRange(1, 1, 1, 6).setValues([
       ["Start Date", "End Date", "Backend Engineer", "Frontend Engineer",
        "Completed Date", "Notes"]
@@ -85,8 +82,9 @@ function createSheets() {
   Logger.log("\n✓ All sheets created!");
   Logger.log("\nNext steps:");
   Logger.log("1. Go to Engineers sheet and add your team (Name + Area + Slack User ID)");
-  Logger.log("2. Run setSlackToken('your-token-here') to add your Slack Bot Token");
-  Logger.log("3. Run initializeRotation() to generate 12 rotations");
+  Logger.log("2. Fill in the Config sheet (at least SLACK_CHANNEL, BUGS_CHANNEL_ID and FIRST_ROTATION_DATE)");
+  Logger.log("3. Run setSlackToken('your-token-here') to add your Slack Bot Token");
+  Logger.log("4. Run initializeRotation() to generate the schedule");
 }
 
 function init() {
@@ -100,7 +98,7 @@ function init() {
 
   Logger.log("Setting up rotation system...");
   initializeRotation();
-  Logger.log("✓ First 12 rotations created!");
+  Logger.log(`✓ First ${getConfig().MAX_FUTURE_ASSIGNMENTS} rotations created!`);
   Logger.log("");
 
   Logger.log("Scheduling triggers...");
@@ -114,8 +112,7 @@ function init() {
 
 function initializeRotation() {
   createArchiveSheetIfNeeded();
-  initializeStateTracking();
   clearRotationSchedule();
-  generateFutureAssignments(CONFIG.MAX_FUTURE_ASSIGNMENTS);
+  generateFutureAssignments(getConfig().MAX_FUTURE_ASSIGNMENTS);
   Logger.log("✓ Rotation system initialized");
 }

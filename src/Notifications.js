@@ -3,7 +3,7 @@
 // ============================================================
 
 function getSlackChannel() {
-  return CONFIG.SLACK_CHANNEL_NOTIFICATIONS;
+  return getConfig().SLACK_CHANNEL;
 }
 
 // ============================================================
@@ -62,10 +62,11 @@ function notifyHandover(newAssignment, previousAssignment) {
 // ============================================================
 
 function sendReminderNotification() {
+  const config = getConfig();
   const today = DateUtils.getTodayAtMidnight();
 
-  if (today.getDay() !== CONFIG.REMINDER_DAY) {
-    Logger.log(`Today is not ${CONFIG.getDayName(CONFIG.REMINDER_DAY)}, skipping notification`);
+  if (today.getDay() !== config.REMINDER_DAY) {
+    Logger.log(`Today is not ${DAY_NAMES[config.REMINDER_DAY]}, skipping notification`);
     return;
   }
 
@@ -76,13 +77,13 @@ function sendReminderNotification() {
     throw new Error("Slack token or channel not configured - reminder not sent");
   }
 
-  const daysUntilRotation = (CONFIG.MAINTENANCE_ROTATION_DAY - today.getDay() + 7) % 7;
+  const daysUntilRotation = (config.ROTATION_DAY - today.getDay() + 7) % 7;
   const nextRotationDay = DateUtils.addDays(today, daysUntilRotation);
 
   const assignment = findAssignmentByStartDate(nextRotationDay);
 
   if (!assignment) {
-    Logger.log(`No assignment found for next ${CONFIG.getDayName(CONFIG.MAINTENANCE_ROTATION_DAY)}`);
+    Logger.log(`No assignment found for next ${DAY_NAMES[config.ROTATION_DAY]}`);
     return;
   }
 
@@ -143,10 +144,24 @@ function formatPairLine(label, previous, next) {
 
 function formatHandoverMoment(date) {
   const d = new Date(date);
-  d.setHours(CONFIG.MAINTENANCE_START_HOUR, 0, 0, 0);
-  const datePart = Utilities.formatDate(d, CONFIG.TIMEZONE, "EEE, MMM d, yyyy");
-  const tz = Utilities.formatDate(d, CONFIG.TIMEZONE, "z");
-  return `${datePart}, ${CONFIG.MAINTENANCE_START_HOUR}:00 ${tz}`;
+  d.setHours(getConfig().ROTATION_START_HOUR, 0, 0, 0);
+  const datePart = Utilities.formatDate(d, getTimeZone(), "EEE, MMM d, yyyy");
+  return `${datePart}, ${formatStartTime(d)}`;
+}
+
+function formatStartTime(date) {
+  const d = new Date(date);
+  d.setHours(getConfig().ROTATION_START_HOUR, 0, 0, 0);
+  return `${getConfig().ROTATION_START_HOUR}:00 ${Utilities.formatDate(d, getTimeZone(), "z")}`;
+}
+
+function getDurationText() {
+  const days = getConfig().DAYS_IN_MAINTENANCE;
+  if (days % 7 === 0) {
+    const weeks = days / 7;
+    return weeks === 1 ? "1 week" : `${weeks} weeks`;
+  }
+  return `${days} days`;
 }
 
 function buildHandoverMessage(prevBackend, newBackend, prevFrontend, newFrontend, newAssignment) {
@@ -154,11 +169,11 @@ function buildHandoverMessage(prevBackend, newBackend, prevFrontend, newFrontend
   const handoverEnd = formatHandoverMoment(DateUtils.addDays(new Date(newAssignment.endDate), 1));
 
   return {
-    text: CONFIG.MESSAGES.HANDOVER_HEADER,
+    text: MESSAGES.HANDOVER_HEADER,
     blocks: [
       {
         type: "header",
-        text: { type: "plain_text", text: CONFIG.MESSAGES.HANDOVER_HEADER, emoji: true }
+        text: { type: "plain_text", text: MESSAGES.HANDOVER_HEADER, emoji: true }
       },
       {
         type: "section",
@@ -171,27 +186,27 @@ function buildHandoverMessage(prevBackend, newBackend, prevFrontend, newFrontend
         type: "section",
         text: {
           type: "mrkdwn",
-          text: `:calendar: *Maintenance Period:* ${CONFIG.getDurationText()}\n${handoverStart}  →  ${handoverEnd}`
+          text: `:calendar: *Maintenance Period:* ${getDurationText()}\n${handoverStart}  →  ${handoverEnd}`
         }
       },
       {
         type: "section",
         text: {
           type: "mrkdwn",
-          text: `${CONFIG.MESSAGES.HANDOVER_DESCRIPTION}\n${CONFIG.MESSAGES.HANDOVER_OUTGOING}\n${CONFIG.MESSAGES.HANDOVER_INCOMING}`
+          text: `${MESSAGES.HANDOVER_DESCRIPTION}\n${MESSAGES.HANDOVER_OUTGOING}\n${MESSAGES.HANDOVER_INCOMING}`
         }
       },
       {
         type: "section",
         text: {
           type: "mrkdwn",
-          text: CONFIG.MESSAGES.HANDOVER_NEXT_STEPS.replace("{BUGS_CHANNEL_ID}", CONFIG.BUGS_CHANNEL_ID)
+          text: MESSAGES.HANDOVER_NEXT_STEPS.replace("{BUGS_CHANNEL_ID}", getConfig().BUGS_CHANNEL_ID)
         }
       },
       {
         type: "context",
         elements: [
-          { type: "mrkdwn", text: CONFIG.MESSAGES.HANDOVER_NOTE }
+          { type: "mrkdwn", text: MESSAGES.HANDOVER_NOTE }
         ]
       }
     ]
@@ -199,17 +214,17 @@ function buildHandoverMessage(prevBackend, newBackend, prevFrontend, newFrontend
 }
 
 function buildChangeNotificationMessage(prevBackend, newBackend, prevFrontend, newFrontend, rotationDate) {
-  const prepareMsg = CONFIG.MESSAGES.CHANGES_PREPARE.replace(
+  const prepareMsg = MESSAGES.CHANGES_PREPARE.replace(
     "{TIME}",
-    CONFIG.getMaintenanceStartTimeDisplay(rotationDate)
+    formatStartTime(rotationDate)
   );
 
   return {
-    text: CONFIG.MESSAGES.CHANGES_HEADER,
+    text: MESSAGES.CHANGES_HEADER,
     blocks: [
       {
         type: "header",
-        text: { type: "plain_text", text: CONFIG.MESSAGES.CHANGES_HEADER }
+        text: { type: "plain_text", text: MESSAGES.CHANGES_HEADER }
       },
       {
         type: "section",
@@ -222,7 +237,7 @@ function buildChangeNotificationMessage(prevBackend, newBackend, prevFrontend, n
         type: "section",
         text: {
           type: "mrkdwn",
-          text: `:alarm_clock: ${prepareMsg}\n:calendar: ${CONFIG.MESSAGES.CHANGES_CHECK}`
+          text: `:alarm_clock: ${prepareMsg}\n:calendar: ${MESSAGES.CHANGES_CHECK}`
         }
       }
     ]

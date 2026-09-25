@@ -31,53 +31,31 @@ function getEngineersData() {
   return { backend, frontend, userIds };
 }
 
-function getStateValue(key) {
-  const configSheet = getConfigSheet();
-  const data = configSheet.getDataRange().getValues();
+const LEGACY_INDEX_KEYS = {
+  [PROPERTY_KEYS.LAST_BACKEND_INDEX]: "Last Backend Index",
+  [PROPERTY_KEYS.LAST_FRONTEND_INDEX]: "Last Frontend Index"
+};
 
-  for (let i = 0; i < data.length; i++) {
-    if (data[i][0] === key) {
-      return data[i][1];
-    }
-  }
+function getRotationIndex(propertyKey) {
+  const stored = PropertiesService.getScriptProperties().getProperty(propertyKey);
+  if (stored !== null) return Number(stored);
 
-  return 0;
+  const legacy = readConfigSheetValues()[LEGACY_INDEX_KEYS[propertyKey]];
+  return isBlank(legacy) ? 0 : Number(legacy);
 }
 
-function setStateValue(key, value) {
-  const configSheet = getConfigSheet();
-  const data = configSheet.getDataRange().getValues();
-
-  for (let i = 0; i < data.length; i++) {
-    if (data[i][0] === key) {
-      configSheet.getRange(i + 1, 2).setValue(value);
-      return;
-    }
-  }
-
-  const newRow = data.length + 1;
-  configSheet.getRange(newRow, 1).setValue(key);
-  configSheet.getRange(newRow, 2).setValue(value);
+function setRotationIndex(propertyKey, index) {
+  PropertiesService.getScriptProperties().setProperty(propertyKey, String(index));
 }
 
-function initializeStateTracking() {
-  const configSheet = getConfigSheet();
-  const data = configSheet.getDataRange().getValues();
-
-  let hasBackendIndex = false;
-  for (let i = 0; i < data.length; i++) {
-    if (data[i][0] === "Last Backend Index") {
-      hasBackendIndex = true;
-      break;
+function migrateLegacyRotationIndices(configValues) {
+  const properties = PropertiesService.getScriptProperties();
+  for (const propertyKey of Object.keys(LEGACY_INDEX_KEYS)) {
+    const legacy = configValues[LEGACY_INDEX_KEYS[propertyKey]];
+    if (properties.getProperty(propertyKey) === null && !isBlank(legacy)) {
+      properties.setProperty(propertyKey, String(Number(legacy)));
+      Logger.log(`✓ Moved "${LEGACY_INDEX_KEYS[propertyKey]}" (${legacy}) to Script Properties`);
     }
-  }
-
-  if (!hasBackendIndex) {
-    const rowStart = data.length + 1;
-    configSheet.getRange(rowStart, 1, 2, 2).setValues([
-      ["Last Backend Index", 0],
-      ["Last Frontend Index", 0]
-    ]);
   }
 }
 
@@ -94,8 +72,8 @@ function generateFutureAssignments(count) {
     return;
   }
 
-  const lastBackendIndex = getStateValue("Last Backend Index") || 0;
-  const lastFrontendIndex = getStateValue("Last Frontend Index") || 0;
+  const lastBackendIndex = getRotationIndex(PROPERTY_KEYS.LAST_BACKEND_INDEX);
+  const lastFrontendIndex = getRotationIndex(PROPERTY_KEYS.LAST_FRONTEND_INDEX);
   const lastEndDate = getLastAssignmentEndDate();
 
   // The indices point at the last archived pair. The first scheduled row is the one after it,
@@ -158,8 +136,9 @@ function maintainRotation() {
   const remainingData = rotationSheet.getDataRange().getValues();
   const futureCount = remainingData.length - 1;
 
-  if (futureCount < CONFIG.MAX_FUTURE_ASSIGNMENTS) {
-    const needed = CONFIG.MAX_FUTURE_ASSIGNMENTS - futureCount;
+  const maxFutureAssignments = getConfig().MAX_FUTURE_ASSIGNMENTS;
+  if (futureCount < maxFutureAssignments) {
+    const needed = maxFutureAssignments - futureCount;
     generateFutureAssignments(needed);
     Logger.log(`✓ Archived ${archivedCount}, generated ${needed} new assignments`);
   } else {
@@ -171,8 +150,6 @@ function maintainRotation() {
 // ASSIGNMENT LOGIC
 // ============================================================
 
-// Continues from the schedule, then from the archive, and only falls back to
-// ROTATION_START_DATE when both are empty (e.g. a brand-new sheet).
 function getLastAssignmentEndDate() {
   const data = getRotationSheet().getDataRange().getValues();
   for (let i = data.length - 1; i > 0; i--) {
@@ -188,7 +165,11 @@ function getLastAssignmentEndDate() {
     }
   }
 
-  return new Date(CONFIG.ROTATION_START_DATE);
+  const firstRotationDate = getConfig().FIRST_ROTATION_DATE;
+  if (!firstRotationDate) {
+    throw new Error("Schedule and archive are empty - set FIRST_ROTATION_DATE in the Config sheet");
+  }
+  return DateUtils.subtractDays(firstRotationDate, 1);
 }
 
 function countScheduledAssignments() {
@@ -202,12 +183,14 @@ function hasArchivedAssignments() {
 }
 
 function calculatePeriodDates(lastEndDate, offsetWeeks) {
+  const days = getConfig().DAYS_IN_MAINTENANCE;
+
   const periodStart = new Date(lastEndDate);
   periodStart.setDate(periodStart.getDate() + 1);
-  periodStart.setDate(periodStart.getDate() + (offsetWeeks * CONFIG.DAYS_IN_MAINTENANCE));
+  periodStart.setDate(periodStart.getDate() + (offsetWeeks * days));
 
   const periodEnd = new Date(periodStart);
-  periodEnd.setDate(periodEnd.getDate() + (CONFIG.DAYS_IN_MAINTENANCE - 1));
+  periodEnd.setDate(periodEnd.getDate() + (days - 1));
 
   return { periodStart, periodEnd };
 }
@@ -293,13 +276,13 @@ function updateStateFromArchivedAssignment(rowData) {
   const frontendIndex = engineers.frontend.indexOf(rowData[ROTATION_COLS.FRONTEND]);
 
   if (backendIndex >= 0) {
-    setStateValue("Last Backend Index", backendIndex);
+    setRotationIndex(PROPERTY_KEYS.LAST_BACKEND_INDEX, backendIndex);
   } else {
     Logger.log(`⚠️ Archived backend engineer "${rowData[ROTATION_COLS.BACKEND]}" not found in Engineers sheet - rotation index not advanced`);
   }
 
   if (frontendIndex >= 0) {
-    setStateValue("Last Frontend Index", frontendIndex);
+    setRotationIndex(PROPERTY_KEYS.LAST_FRONTEND_INDEX, frontendIndex);
   } else {
     Logger.log(`⚠️ Archived frontend engineer "${rowData[ROTATION_COLS.FRONTEND]}" not found in Engineers sheet - rotation index not advanced`);
   }

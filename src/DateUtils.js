@@ -8,6 +8,12 @@ const DateUtils = {
     today.setHours(0, 0, 0, 0);
     return today;
   },
+
+  atMidnight(date) {
+    const result = new Date(date);
+    result.setHours(0, 0, 0, 0);
+    return result;
+  },
   
   isFriday(date) {
     return date.getDay() === 5;
@@ -41,3 +47,7 @@ const DateUtils = {
     return result;
   }
 };
+
+function getTimeZone() {
+  return Session.getScriptTimeZone();
+}

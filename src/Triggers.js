@@ -3,6 +3,7 @@
 // ============================================================
 
 function setupTriggers() {
+  const config = getConfig();
   const triggers = ScriptApp.getProjectTriggers();
   for (const trigger of triggers) {
     ScriptApp.deleteTrigger(trigger);
@@ -20,26 +21,26 @@ function setupTriggers() {
 
   ScriptApp.newTrigger("maintainRotation")
     .timeBased()
-    .onWeekDay(weekDays[CONFIG.MAINTENANCE_ROTATION_DAY])
-    .atHour(CONFIG.MAINTENANCE_ARCHIVE_HOUR)
-    .inTimezone(CONFIG.TIMEZONE)
+    .onWeekDay(weekDays[config.ROTATION_DAY])
+    .atHour(config.ARCHIVE_HOUR)
+    .inTimezone(getTimeZone())
     .create();
 
   ScriptApp.newTrigger("sendMaintenanceHandoverNotification")
     .timeBased()
-    .onWeekDay(weekDays[CONFIG.MAINTENANCE_ROTATION_DAY])
-    .atHour(CONFIG.MAINTENANCE_START_HOUR)
-    .inTimezone(CONFIG.TIMEZONE)
+    .onWeekDay(weekDays[config.ROTATION_DAY])
+    .atHour(config.ROTATION_START_HOUR)
+    .inTimezone(getTimeZone())
     .create();
 
   ScriptApp.newTrigger("sendReminderNotification")
     .timeBased()
-    .onWeekDay(weekDays[CONFIG.REMINDER_DAY])
-    .atHour(CONFIG.REMINDER_HOUR)
-    .inTimezone(CONFIG.TIMEZONE)
+    .onWeekDay(weekDays[config.REMINDER_DAY])
+    .atHour(config.REMINDER_HOUR)
+    .inTimezone(getTimeZone())
     .create();
 
   Logger.log(`✓ Triggers set up`);
-  Logger.log(`  - Maintenance handover: ${CONFIG.getDayName(CONFIG.MAINTENANCE_ROTATION_DAY)} at ${CONFIG.MAINTENANCE_START_HOUR}:00`);
-  Logger.log(`  - Change notification: ${CONFIG.getDayName(CONFIG.REMINDER_DAY)} at ${CONFIG.REMINDER_HOUR}:00`);
+  Logger.log(`  - Maintenance handover: ${DAY_NAMES[config.ROTATION_DAY]} at ${config.ROTATION_START_HOUR}:00`);
+  Logger.log(`  - Change notification: ${DAY_NAMES[config.REMINDER_DAY]} at ${config.REMINDER_HOUR}:00`);
 }
