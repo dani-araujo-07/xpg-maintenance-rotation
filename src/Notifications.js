@@ -44,15 +44,7 @@ function notifyHandover(newAssignment, previousAssignment) {
     Logger.log("⚠️ No previous assignment found - sending handover with the incoming pair only");
   }
 
-  const engineers = getEngineersData();
-  const prev = previousAssignment || {};
-
-  const message = buildHandoverMessage(
-    formatMention(prev.backend, engineers.userIds), formatMention(newAssignment.backend, engineers.userIds),
-    formatMention(prev.frontend, engineers.userIds), formatMention(newAssignment.frontend, engineers.userIds),
-    newAssignment
-  );
-
+  const message = composeHandoverMessage(newAssignment, previousAssignment, true);
   sendSlackMessageOrThrow(slackToken, slackChannel, message, "handover notification");
   Logger.log(`✓ Sent handover notification`);
 }
@@ -98,18 +90,25 @@ function sendReminderNotification() {
     Logger.log("⚠️ No previous assignment found - sending reminder with the incoming pair only");
   }
 
-  const engineers = getEngineersData();
-  const prev = prevAssignment || {};
-
-  const message = buildChangeNotificationMessage(
-    formatMention(prev.backend, engineers.userIds), formatMention(assignment.backend, engineers.userIds),
-    formatMention(prev.frontend, engineers.userIds), formatMention(assignment.frontend, engineers.userIds),
-    assignment
-  );
-
+  const message = composeReminderMessage(assignment, prevAssignment, true);
   sendSlackMessageOrThrow(slackToken, slackChannel, message, "reminder");
   markAssignmentReminderAsSent(assignment.rowIndex);
   Logger.log(`✓ Sent change notification for next rotation`);
+}
+
+function composeHandoverMessage(assignment, previousAssignment, useMentions) {
+  return buildHandoverMessage(...formatPeople(assignment, previousAssignment, useMentions), assignment);
+}
+
+function composeReminderMessage(assignment, previousAssignment, useMentions) {
+  return buildChangeNotificationMessage(...formatPeople(assignment, previousAssignment, useMentions), assignment);
+}
+
+function formatPeople(assignment, previousAssignment, useMentions) {
+  const previous = previousAssignment || {};
+  const userIds = useMentions ? getEngineersData().userIds : null;
+  const show = name => (useMentions ? formatMention(name, userIds) : name || null);
+  return [show(previous.backend), show(assignment.backend), show(previous.frontend), show(assignment.frontend)];
 }
 
 // ============================================================

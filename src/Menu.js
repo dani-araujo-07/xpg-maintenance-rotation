@@ -2,6 +2,7 @@ function onOpen() {
   SpreadsheetApp.getUi().createMenu("Rotation")
     .addItem("Check setup", "menuCheckSetup")
     .addItem("Top up schedule now", "menuTopUpSchedule")
+    .addItem("Send message previews", "menuSendPreviews")
     .addSeparator()
     .addItem("Set Slack token…", "menuSetSlackToken")
     .addItem("Install triggers…", "menuInstallTriggers")
@@ -35,6 +36,13 @@ function menuTopUpSchedule() {
   runFromMenu("Top up schedule", () => {
     maintainRotation();
     return "Finished rotations were archived and the schedule was topped up.";
+  });
+}
+
+function menuSendPreviews() {
+  runFromMenu("Send message previews", () => {
+    const channel = previewMessages();
+    return `Previews of the next reminder and handover were sent to ${channel}.\n\nNobody was mentioned and nothing in the sheets was changed.`;
   });
 }
 

@@ -103,6 +103,10 @@ function init() {
   createSheets();
   Logger.log("");
 
+  if (countScheduledAssignments() > 0 || hasArchivedAssignments()) {
+    throw new Error("This spreadsheet already has a schedule. Use Rotation → Regenerate schedule instead.");
+  }
+
   Logger.log("Setting up rotation system...");
   initializeRotation();
   Logger.log(`✓ First ${getConfig().MAX_FUTURE_ASSIGNMENTS} rotations created!`);

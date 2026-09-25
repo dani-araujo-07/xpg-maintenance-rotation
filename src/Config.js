@@ -5,6 +5,8 @@ const SETTINGS = [
     description: "Channel for handover and reminder messages: a channel ID (C0123...) or a name without #." },
   { key: "BUGS_CHANNEL_ID", type: "text", default: "",
     description: "Channel ID linked in the handover message for urgent incoming issues." },
+  { key: "TEST_CHANNEL", type: "text", default: "",
+    description: "Channel for message previews (Rotation → Send message previews). Must differ from SLACK_CHANNEL. Previews are disabled when empty." },
   { key: "DAYS_IN_MAINTENANCE", type: "number", default: 14,
     description: "Length of one rotation in days." },
   { key: "MAX_FUTURE_ASSIGNMENTS", type: "number", default: 12,
@@ -156,7 +158,7 @@ function setupConfigSheet() {
   ]);
 
   sheet.clear();
-  sheet.getDataRange().clearDataValidations();
+  sheet.getRange(1, 1, sheet.getMaxRows(), sheet.getMaxColumns()).clearDataValidations();
   sheet.getRange(1, 1, 1, 4).setValues([["Key", "Value", "Type", "Description"]]).setFontWeight("bold");
   sheet.setFrozenRows(1);
   sheet.getRange(2, 2, rows.length, 1).setNumberFormat("@");

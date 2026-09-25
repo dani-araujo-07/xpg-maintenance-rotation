@@ -53,6 +53,14 @@ function validateSlack(config, add) {
   if (config.BUGS_CHANNEL_ID && !isSlackChannelId(config.BUGS_CHANNEL_ID)) {
     add(CHECK.ERROR, `Config: BUGS_CHANNEL_ID "${config.BUGS_CHANNEL_ID}" is not a channel ID (like C0123ABCD)`);
   }
+
+  if (!config.TEST_CHANNEL) {
+    add(CHECK.WARNING, "Config: TEST_CHANNEL is empty - message previews are disabled");
+  } else if (config.TEST_CHANNEL === config.SLACK_CHANNEL) {
+    add(CHECK.ERROR, "Config: TEST_CHANNEL must be different from SLACK_CHANNEL");
+  } else if (!isSlackChannelId(config.TEST_CHANNEL) && !/^[a-z0-9._-]+$/.test(config.TEST_CHANNEL)) {
+    add(CHECK.ERROR, `Config: TEST_CHANNEL "${config.TEST_CHANNEL}" is neither a channel ID nor a channel name (lowercase, no #)`);
+  }
 }
 
 function isSlackChannelId(value) {
