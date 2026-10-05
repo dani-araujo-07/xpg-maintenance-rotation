@@ -225,6 +225,28 @@ function findAssignmentByStartDate(targetDate) {
   return null;
 }
 
+function findCurrentAssignment(today) {
+  const data = getRotationSheet().getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    if (!data[i][ROTATION_COLS.START_DATE]) continue;
+
+    const startDate = DateUtils.atMidnight(data[i][ROTATION_COLS.START_DATE]);
+    const endDate = DateUtils.atMidnight(data[i][ROTATION_COLS.END_DATE]);
+
+    if (startDate <= today && today <= endDate) {
+      return {
+        backend: data[i][ROTATION_COLS.BACKEND],
+        frontend: data[i][ROTATION_COLS.FRONTEND],
+        startDate: new Date(data[i][ROTATION_COLS.START_DATE]),
+        endDate: new Date(data[i][ROTATION_COLS.END_DATE])
+      };
+    }
+  }
+
+  return null;
+}
+
 function findPreviousAssignment(targetDate) {
   const archiveSheet = getArchiveSheet();
   const data = archiveSheet.getDataRange().getValues();

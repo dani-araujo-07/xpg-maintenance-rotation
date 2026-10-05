@@ -60,12 +60,33 @@ function validateSlack(config, add) {
     add(CHECK.ERROR, `Config: BUGS_CHANNEL_ID "${config.BUGS_CHANNEL_ID}" is not a channel ID (like C0123ABCD)`);
   }
 
+  if (config.TOPIC_CHANNEL_ID) {
+    validateTopicChannel(config.TOPIC_CHANNEL_ID, token, add);
+  }
+
   if (!config.TEST_CHANNEL) {
     add(CHECK.WARNING, "Config: TEST_CHANNEL is empty - message previews are disabled");
   } else if (config.TEST_CHANNEL === config.SLACK_CHANNEL) {
     add(CHECK.ERROR, "Config: TEST_CHANNEL must be different from SLACK_CHANNEL");
   } else if (!isSlackChannelId(config.TEST_CHANNEL) && !/^[a-z0-9._-]+$/.test(config.TEST_CHANNEL)) {
     add(CHECK.ERROR, `Config: TEST_CHANNEL "${config.TEST_CHANNEL}" is neither a channel ID nor a channel name (lowercase, no #)`);
+  }
+}
+
+function validateTopicChannel(channelId, token, add) {
+  if (!isSlackChannelId(channelId)) {
+    add(CHECK.ERROR, `Config: TOPIC_CHANNEL_ID "${channelId}" is not a channel ID (like C0123ABCD)`);
+    return;
+  }
+  if (!token) return;
+
+  const channel = SlackAPI.getChannelInfo(token, channelId);
+  if (!channel) {
+    add(CHECK.WARNING, `Couldn't look up TOPIC_CHANNEL_ID ${channelId} - check the ID and that the Slack app has the channels:read scope`);
+  } else if (!channel.is_member) {
+    add(CHECK.ERROR, `The bot is not in #${channel.name}, so it can't set the topic. Invite it to the channel.`);
+  } else {
+    add(CHECK.OK, `Topic channel: #${channel.name}`);
   }
 }
 

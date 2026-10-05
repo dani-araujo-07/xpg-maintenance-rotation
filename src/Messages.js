@@ -25,7 +25,10 @@ const MESSAGE_DEFINITIONS = [
     description: "Reminder message: who hands over to whom." },
   { key: "REMINDER_BODY",
     default: ":alarm_clock: Prepare your task handover before {DAY} at {TIME}\n:calendar: Please check your calendars for PTO and coordinate coverage if needed.",
-    description: "Reminder message: what to prepare." }
+    description: "Reminder message: what to prepare." },
+  { key: "CHANNEL_TOPIC",
+    default: "MNT rotation: {START_DATE}  →  {END_DATE} {NEW_FRONTEND} {NEW_BACKEND}",
+    description: "Topic set in TOPIC_CHANNEL_ID when a rotation starts. Plain text, at most 250 characters once filled in. Clearing it leaves the topic alone." }
 ];
 
 const MESSAGE_PLACEHOLDERS = [
@@ -37,6 +40,8 @@ const MESSAGE_PLACEHOLDERS = [
   ["{PREV_FRONTEND}", "Outgoing frontend engineer (empty if there is no previous rotation)"],
   ["{START}", "When the rotation starts, e.g. Mon, Oct 5, 2026, 15:00 CEST"],
   ["{END}", "When the rotation ends (the next handover), e.g. Mon, Oct 19, 2026, 15:00 CEST"],
+  ["{START_DATE}", "Start date without weekday or time, e.g. Oct 5"],
+  ["{END_DATE}", "Date of the next handover without weekday or time, e.g. Oct 19"],
   ["{DAY}", "Rotation weekday from the Config sheet, e.g. Monday"],
   ["{TIME}", "Rotation start time, e.g. 15:00 CEST"],
   ["{DURATION}", "Rotation length, e.g. 2 weeks"],

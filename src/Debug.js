@@ -150,6 +150,19 @@ function previewMessages() {
     sendSlackMessageOrThrow(token, channel, markAsPreview(message), `${name} preview`);
   }
 
+  const topic = composeChannelTopic(next, false);
+  if (getConfig().TOPIC_CHANNEL_ID && topic) {
+    const label = `🧪 *Preview* - the topic of <#${getConfig().TOPIC_CHANNEL_ID}> is set to this when the rotation starts, with @-mentions instead of names`;
+    const message = {
+      text: `[Preview] ${topic}`,
+      blocks: [
+        { type: "context", elements: [{ type: "mrkdwn", text: label }] },
+        { type: "section", text: { type: "plain_text", text: topic } }
+      ]
+    };
+    sendSlackMessageOrThrow(token, channel, message, "channel topic preview");
+  }
+
   Logger.log(`✓ Sent reminder and handover previews for ${next.backend} & ${next.frontend} to ${channel}`);
   return channel;
 }

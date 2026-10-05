@@ -1,6 +1,6 @@
 # Maintenance Rotation
 
-Google Apps Script bound to a spreadsheet. It pairs one backend and one frontend engineer on rotations (2 weeks by default), posts Slack handover and reminder messages, archives finished rotations, and keeps the schedule topped up.
+Google Apps Script bound to a spreadsheet. It pairs one backend and one frontend engineer on rotations (2 weeks by default), posts Slack handover and reminder messages, optionally sets a channel topic with the current pair, archives finished rotations, and keeps the schedule topped up.
 
 The code lives in this repo and is deployed to one spreadsheet per team. Everything team-specific (settings, message wording, engineers) lives in that team's spreadsheet.
 
@@ -17,7 +17,7 @@ The Slack token and the round-robin position are stored in Script Properties, no
 Scheduled runs, in the script's timezone:
 
 - **ROTATION_DAY at ARCHIVE_HOUR**: archive finished rotations and top up the schedule
-- **ROTATION_DAY at ROTATION_START_HOUR**: post the handover message
+- **ROTATION_DAY at ROTATION_START_HOUR**: post the handover message and set the channel topic
 - **REMINDER_DAY at REMINDER_HOUR**: post the reminder for the upcoming change
 
 ## Prerequisites
@@ -46,9 +46,9 @@ npm run login
 5. **Rotation → Set up sheets**. Google asks you to authorize the script the first time.
 6. Set the spreadsheet timezone (**File → Settings**) to the `timeZone` from `teams.json`.
 7. **Engineers**: one row per person, with Area `Backend` or `Frontend`. To get a Slack User ID, open the person's Slack profile, click ⋮ and choose **Copy member ID**. The order of the rows is the rotation order.
-8. **Config**: fill in at least `SLACK_CHANNEL`, `FIRST_ROTATION_DATE` (the first rotation's start date, on `ROTATION_DAY`) and, if you use it, `BUGS_CHANNEL_ID`. Setting `TEST_CHANNEL` enables previews.
+8. **Config**: fill in at least `SLACK_CHANNEL`, `FIRST_ROTATION_DATE` (the first rotation's start date, on `ROTATION_DAY`) and, if you use them, `BUGS_CHANNEL_ID` and `TOPIC_CHANNEL_ID`. Setting `TEST_CHANNEL` enables previews. To get a channel ID, open the channel details; it's at the bottom.
 9. **Messages**: adjust the wording if you want. Clearing a row leaves that part out.
-10. **Rotation → Set Slack token**, then invite the bot to `SLACK_CHANNEL` and `TEST_CHANNEL`.
+10. **Rotation → Set Slack token**, then invite the bot to `SLACK_CHANNEL`, `TEST_CHANNEL` and `TOPIC_CHANNEL_ID`. Setting the topic needs the `channels:write.topic` scope (`groups:write.topic` for a private channel), and **Check setup** needs `channels:read` to look the channel up.
 11. **Rotation → Check setup** and fix any errors.
 12. **Rotation → Regenerate schedule** to create the first rotations.
 13. **Rotation → Send message previews** to check the messages in `TEST_CHANNEL`.
@@ -80,7 +80,8 @@ Suggested flow for a change: commit it, deploy to one team, check its sheet (Che
 | --- | --- |
 | Check setup | Checks settings, Slack, timezone, engineers, schedule, messages, triggers, and shows the deployed version |
 | Top up schedule now | Archives finished rotations and adds new ones, like the scheduled archive run |
-| Send message previews | Posts the next reminder and handover to `TEST_CHANNEL`, with names instead of @-mentions |
+| Send message previews | Posts the next reminder, handover and channel topic to `TEST_CHANNEL`, with names instead of @-mentions |
+| Update channel topic | Sets the topic of `TOPIC_CHANNEL_ID` for the rotation covering today, e.g. after a swap |
 | Set Slack token | Saves the bot token and checks it with Slack |
 | Install triggers | (Re)creates the scheduled runs under your account |
 | Set up sheets | Creates missing sheets and adds new settings and messages, keeping your values |
@@ -94,7 +95,7 @@ Suggested flow for a change: commit it, deploy to one team, check its sheet (Che
 | `Config.js` | Config sheet: settings, defaults, parsing, `setupConfigSheet()` |
 | `Messages.js` | Messages sheet: default wording, placeholders, `setupMessagesSheet()` |
 | `Rotation.js` | Round-robin generation, archiving, lookups (`maintainRotation()`) |
-| `Notifications.js` | Handover and reminder messages |
+| `Notifications.js` | Handover and reminder messages, channel topic |
 | `Validate.js` | `validateSetup()`, behind **Check setup** |
 | `Menu.js` | The **Rotation** menu |
 | `Setup.js`, `Sheets.js`, `Triggers.js` | Sheet creation, Slack token, sheet helpers, triggers |

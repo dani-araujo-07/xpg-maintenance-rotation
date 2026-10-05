@@ -241,6 +241,45 @@ const SlackAPI = {
       return null;
     }
   },
+
+  setTopic(token, channelId, topic) {
+    if (!token || !channelId || !topic) {
+      Logger.log("Error: token, channelId, or topic missing");
+      return { ok: false, error: "Missing parameters" };
+    }
+
+    const url = "https://slack.com/api/conversations.setTopic";
+    const payload = JSON.stringify({
+      channel: channelId,
+      topic: topic
+    });
+
+    const options = {
+      method: "post",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      payload: payload,
+      muteHttpExceptions: true
+    };
+
+    try {
+      const response = UrlFetchApp.fetch(url, options);
+      const json = JSON.parse(response.getContentText());
+
+      if (!json.ok) {
+        Logger.log(`Slack API Error (conversations.setTopic): ${json.error}`);
+        return json;
+      }
+
+      Logger.log(`Topic set in ${channelId}`);
+      return json;
+    } catch (e) {
+      Logger.log(`Exception in setTopic: ${e.message}`);
+      return { ok: false, error: e.message };
+    }
+  },
   
   // ============================================================
   // UTILITY

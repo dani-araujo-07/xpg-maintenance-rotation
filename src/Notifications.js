@@ -21,15 +21,18 @@ function sendMaintenanceHandoverNotification() {
 
   if (isFlagSet(newAssignment.notified)) {
     Logger.log("Notification already sent for today");
-    return;
+  } else {
+    const yesterday = DateUtils.subtractDays(today, 1);
+    const previousAssignment = findPreviousAssignment(yesterday);
+
+    // Throws if the message wasn't delivered, so the flag is only set on success
+    notifyHandover(newAssignment, previousAssignment);
+    markAssignmentAsNotified(newAssignment.rowIndex);
   }
 
-  const yesterday = DateUtils.subtractDays(today, 1);
-  const previousAssignment = findPreviousAssignment(yesterday);
-
-  // Throws if the message wasn't delivered, so the flag is only set on success
-  notifyHandover(newAssignment, previousAssignment);
-  markAssignmentAsNotified(newAssignment.rowIndex);
+  // After the handover, so a topic failure never holds it back. Re-running
+  // retries the topic without posting the handover again.
+  updateChannelTopic(newAssignment);
 }
 
 function notifyHandover(newAssignment, previousAssignment) {
@@ -47,6 +50,48 @@ function notifyHandover(newAssignment, previousAssignment) {
   const message = composeHandoverMessage(newAssignment, previousAssignment, true);
   sendSlackMessageOrThrow(slackToken, slackChannel, message, "handover notification");
   Logger.log(`✓ Sent handover notification`);
+}
+
+// ============================================================
+// CHANNEL TOPIC
+// ============================================================
+
+// Returns the topic that was set, or null when the topic is disabled
+function updateChannelTopic(assignment) {
+  const channelId = getConfig().TOPIC_CHANNEL_ID;
+  const topic = composeChannelTopic(assignment, true);
+
+  if (!channelId || !topic) {
+    Logger.log("TOPIC_CHANNEL_ID or CHANNEL_TOPIC is empty - channel topic left alone");
+    return null;
+  }
+
+  const slackToken = getSlackToken();
+  if (!slackToken) {
+    throw new Error("Slack token not configured - channel topic not updated");
+  }
+
+  const channel = SlackAPI.getChannelInfo(slackToken, channelId);
+  if (channel && channel.topic && channel.topic.value === topic) {
+    Logger.log("Channel topic already up to date");
+    return topic;
+  }
+
+  const result = SlackAPI.setTopic(slackToken, channelId, topic);
+  if (!result || !result.ok) {
+    const scopes = result && result.error === "missing_scope"
+      ? ` (needs ${result.needed}, token has ${result.provided})`
+      : "";
+    throw new Error(`Slack channel topic update failed: ${result ? result.error : "no response"}${scopes}`);
+  }
+
+  Logger.log(`✓ Channel topic set to: ${topic}`);
+  return topic;
+}
+
+function composeChannelTopic(assignment, useMentions) {
+  const [, newBackend, , newFrontend] = formatPeople(assignment, null, useMentions);
+  return renderMessage("CHANNEL_TOPIC", buildMessageValues(null, newBackend, null, newFrontend, assignment));
 }
 
 // ============================================================
@@ -144,6 +189,10 @@ function formatHandoverMoment(date) {
   return `${datePart}, ${formatStartTime(d)}`;
 }
 
+function formatShortDate(date) {
+  return Utilities.formatDate(new Date(date), getTimeZone(), "MMM d");
+}
+
 function formatStartTime(date) {
   const d = new Date(date);
   d.setHours(getConfig().ROTATION_START_HOUR, 0, 0, 0);
@@ -172,6 +221,8 @@ function buildMessageValues(prevBackend, newBackend, prevFrontend, newFrontend, 
     PREV_FRONTEND: prevFrontend || "",
     START: formatHandoverMoment(assignment.startDate),
     END: formatHandoverMoment(DateUtils.addDays(new Date(assignment.endDate), 1)),
+    START_DATE: formatShortDate(assignment.startDate),
+    END_DATE: formatShortDate(DateUtils.addDays(new Date(assignment.endDate), 1)),
     DAY: DAY_NAMES[config.ROTATION_DAY],
     TIME: formatStartTime(assignment.startDate),
     DURATION: getDurationText(),

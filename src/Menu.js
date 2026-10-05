@@ -3,6 +3,7 @@ function onOpen() {
     .addItem("Check setup", "menuCheckSetup")
     .addItem("Top up schedule now", "menuTopUpSchedule")
     .addItem("Send message previews", "menuSendPreviews")
+    .addItem("Update channel topic", "menuUpdateChannelTopic")
     .addSeparator()
     .addItem("Set Slack token…", "menuSetSlackToken")
     .addItem("Install triggers…", "menuInstallTriggers")
@@ -42,7 +43,19 @@ function menuTopUpSchedule() {
 function menuSendPreviews() {
   runFromMenu("Send message previews", () => {
     const channel = previewMessages();
-    return `Previews of the next reminder and handover were sent to ${channel}.\n\nNobody was mentioned and nothing in the sheets was changed.`;
+    return `Previews of the next reminder, handover and channel topic were sent to ${channel}.\n\nNobody was mentioned and nothing in the sheets or channel topic was changed.`;
+  });
+}
+
+function menuUpdateChannelTopic() {
+  runFromMenu("Update channel topic", () => {
+    const assignment = findCurrentAssignment(DateUtils.getTodayAtMidnight());
+    if (!assignment) throw new Error("No rotation in the schedule covers today");
+
+    const topic = updateChannelTopic(assignment);
+    return topic
+      ? `Topic of ${getConfig().TOPIC_CHANNEL_ID} is now:\n\n${composeChannelTopic(assignment, false)}`
+      : "TOPIC_CHANNEL_ID (Config) or CHANNEL_TOPIC (Messages) is empty, so the topic was left alone.";
   });
 }
 

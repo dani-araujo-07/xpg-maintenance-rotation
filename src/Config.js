@@ -5,6 +5,8 @@ const SETTINGS = [
     description: "Channel for handover and reminder messages: a channel ID (C0123...) or a name without #." },
   { key: "BUGS_CHANNEL_ID", type: "text", default: "",
     description: "Channel ID linked in the handover message for urgent incoming issues." },
+  { key: "TOPIC_CHANNEL_ID", type: "text", default: "",
+    description: "Channel ID whose topic is set to CHANNEL_TOPIC (Messages sheet) when a rotation starts. The topic is left alone when empty." },
   { key: "TEST_CHANNEL", type: "text", default: "",
     description: "Channel for message previews (Rotation → Send message previews). Must differ from SLACK_CHANNEL. Previews are disabled when empty." },
   { key: "DAYS_IN_MAINTENANCE", type: "number", default: 14,
